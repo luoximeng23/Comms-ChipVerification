@@ -22,6 +22,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
         perl help2man libfl2 libfl-dev zlib1g zlib1g-dev \
         libgoogle-perftools-dev numactl perl-doc \
         libpcre2-dev byacc swig \
+        time \
         gtkwave \
         gnupg \
     && rm -rf /var/lib/apt/lists/*
@@ -47,6 +48,17 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 && \
 COPY prebuilt/usrlocal/ /usr/local/
 RUN ldconfig && \
     chmod +x /usr/local/bin/picker /usr/local/bin/verilator_bin /usr/local/bin/verilator_coverage_bin_dbg
+
+# ============================================================
+# Picker 0.9.0 兼容性修复
+# 降低 SWIG 版本要求 4.2.0 → 4.0（镜像 apt SWIG 4.0.2 完全兼容）
+# /usr/bin/time 已通过 apt 安装（Picker Makefile 依赖）
+# ============================================================
+RUN if [ -f /usr/local/share/picker/template/python/CMakeLists.txt ]; then \
+        sed -i "s/find_package(SWIG 4.2.0 REQUIRED)/find_package(SWIG 4.0 REQUIRED)/" \
+            /usr/local/share/picker/template/python/CMakeLists.txt && \
+        echo "Picker SWIG template patched: 4.2.0 -> 4.0"; \
+    fi
 
 # ============================================================
 # 安装 Node.js 20.x + OpenCode（AI 后端）
@@ -99,6 +111,12 @@ COPY Comms_Verification/ /root/tools/Comms_Verification/
 COPY workspace_async_fifo/ /root/workspace_async_fifo/
 COPY workspace_adder/ /root/workspace_adder/
 COPY workspace_Adder_output/ /root/tools/UCAgent/output/workspace_Adder/
+
+# ============================================================
+# 复制修复脚本（用户可在容器内运行以验证/重新应用修复）
+# ============================================================
+COPY fix_picker.sh /root/fix_picker.sh
+RUN chmod +x /root/fix_picker.sh
 
 # ============================================================
 # 用户级 UCAgent 配置模板（API Key 在运行时通过 -e 注入）
